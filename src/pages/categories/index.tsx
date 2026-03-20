@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { useAuth } from '@/lib/authContext';
 
 interface Category {
   id: number;
@@ -9,15 +11,28 @@ interface Category {
   parentId: number | null;
 }
 
+const API_BASE_URL = 'http://192.168.140.149:5003';
+
 export default function Categories() {
+  const router = useRouter();
+  const { isAuthenticated, loading, user, logout } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [newCategory, setNewCategory] = useState({ name: '', description: '' });
   const [showForm, setShowForm] = useState(false);
 
+  // Redirect to login if not authenticated
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    if (!loading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [loading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchCategories();
+    }
+  }, [isAuthenticated]);
 
   const fetchCategories = async () => {
     try {
@@ -34,11 +49,18 @@ export default function Categories() {
         }
       }`;
       
-      const response = await fetch('http://192.168.140.149:5003/graphql', {
+      const response = await fetch(`${API_BASE_URL}/graphql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ query }),
       });
+      
+      // Handle unauthorized
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       
       const data = await response.json();
       
@@ -48,7 +70,7 @@ export default function Categories() {
     } catch (e) {
       console.error('Error fetching categories:', e);
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -65,11 +87,18 @@ export default function Categories() {
     }`;
     
     try {
-      const response = await fetch('http://192.168.140.149:5003/graphql', {
+      const response = await fetch(`${API_BASE_URL}/graphql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ query: mutation }),
       });
+      
+      // Handle unauthorized
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       
       const data = await response.json();
       
@@ -83,6 +112,24 @@ export default function Categories() {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <>
       <Head>
@@ -92,6 +139,10 @@ export default function Categories() {
       <div className="header">
         <h1><Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>📚 KB Portal</Link></h1>
         <div>
+          <span style={{ marginRight: '15px' }}>Welcome, {user?.username || 'Admin'}</span>
+          <button onClick={handleLogout} className="btn" style={{ background: '#e74c3c', marginRight: '10px' }}>
+            Logout
+          </button>
           <Link href="/" className="btn">Dashboard</Link>
         </div>
       </div>
@@ -128,7 +179,7 @@ export default function Categories() {
             </form>
           )}
           
-          {loading ? (
+          {dataLoading ? (
             <p className="loading">Loading...</p>
           ) : categories.length === 0 ? (
             <p>No categories yet. Create your first category!</p>

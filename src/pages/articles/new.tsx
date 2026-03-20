@@ -2,14 +2,18 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { useAuth } from '@/lib/authContext';
 
 interface Category {
   id: number;
   name: string;
 }
 
+const API_BASE_URL = 'http://192.168.140.149:5003';
+
 export default function NewArticle() {
   const router = useRouter();
+  const { isAuthenticated, loading: authLoading, user, logout } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
@@ -21,9 +25,18 @@ export default function NewArticle() {
     author: 'admin',
   });
 
+  // Redirect to login if not authenticated
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchCategories();
+    }
+  }, [isAuthenticated]);
 
   const fetchCategories = async () => {
     try {
@@ -38,11 +51,18 @@ export default function NewArticle() {
         }
       }`;
       
-      const response = await fetch('http://192.168.140.149:5003/graphql', {
+      const response = await fetch(`${API_BASE_URL}/graphql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ query }),
       });
+      
+      // Handle unauthorized
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       
       const data = await response.json();
       
@@ -78,11 +98,18 @@ export default function NewArticle() {
     }`;
     
     try {
-      const response = await fetch('http://192.168.140.149:5003/graphql', {
+      const response = await fetch(`${API_BASE_URL}/graphql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ query: mutation }),
       });
+      
+      // Handle unauthorized
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       
       const data = await response.json();
       
@@ -94,6 +121,24 @@ export default function NewArticle() {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <>
       <Head>
@@ -103,6 +148,10 @@ export default function NewArticle() {
       <div className="header">
         <h1><Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>📚 KB Portal</Link></h1>
         <div>
+          <span style={{ marginRight: '15px' }}>Welcome, {user?.username || 'Admin'}</span>
+          <button onClick={handleLogout} className="btn" style={{ background: '#e74c3c', marginRight: '10px' }}>
+            Logout
+          </button>
           <Link href="/articles" className="btn">Back to Articles</Link>
         </div>
       </div>

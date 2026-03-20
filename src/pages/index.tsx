@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { useAuth } from '@/lib/authContext';
 
 interface Stats {
   totalArticles: number;
@@ -18,7 +20,11 @@ interface Article {
   categoryId: number | null;
 }
 
+const API_BASE_URL = 'http://192.168.140.149:5003';
+
 export default function Home() {
+  const router = useRouter();
+  const { isAuthenticated, loading, user, logout, checkAuthentication } = useAuth();
   const [stats, setStats] = useState<Stats>({
     totalArticles: 0,
     publishedArticles: 0,
@@ -26,12 +32,21 @@ export default function Home() {
     totalTags: 0,
   });
   const [articles, setArticles] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [loading, isAuthenticated, router]);
 
   useEffect(() => {
-    fetchStats();
-    fetchRecentArticles();
-  }, []);
+    if (isAuthenticated) {
+      fetchStats();
+      fetchRecentArticles();
+    }
+  }, [isAuthenticated]);
 
   const fetchStats = async () => {
     try {
@@ -41,11 +56,18 @@ export default function Home() {
         allTags { edges { node { id } } }
       }`;
       
-      const response = await fetch('http://192.168.140.149:5003/graphql', {
+      const response = await fetch(`${API_BASE_URL}/graphql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ query }),
       });
+      
+      // Handle unauthorized
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       
       const data = await response.json();
       
@@ -67,7 +89,7 @@ export default function Home() {
     } catch (e) {
       console.error('Error fetching stats:', e);
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -88,11 +110,18 @@ export default function Home() {
         }
       }`;
       
-      const response = await fetch('http://192.168.140.149:5003/graphql', {
+      const response = await fetch(`${API_BASE_URL}/graphql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ query }),
       });
+      
+      // Handle unauthorized
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       
       const data = await response.json();
       
@@ -104,10 +133,28 @@ export default function Home() {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+  };
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString();
   };
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <>
@@ -118,7 +165,10 @@ export default function Home() {
       <div className="header">
         <h1>📚 KB Portal</h1>
         <div>
-          <Link href="/login" className="btn">Login</Link>
+          <span style={{ marginRight: '15px' }}>Welcome, {user?.username || 'Admin'}</span>
+          <button onClick={handleLogout} className="btn" style={{ background: '#e74c3c' }}>
+            Logout
+          </button>
         </div>
       </div>
       
@@ -126,15 +176,19 @@ export default function Home() {
         <div className="stats">
           <div className="stat-card">
             <h3>Total Articles</h3>
-            <div className="number">{loading ? '-' : stats.totalArticles}</div>
+            <div className="number">{dataLoading ? '-' : stats.totalArticles}</div>
+          </div>
+          <div className="stat-card">
+            <h3>Published</h3>
+            <div className="number">{dataLoading ? '-' : stats.publishedArticles}</div>
           </div>
           <div className="stat-card">
             <h3>Categories</h3>
-            <div className="number">{loading ? '-' : stats.totalCategories}</div>
+            <div className="number">{dataLoading ? '-' : stats.totalCategories}</div>
           </div>
           <div className="stat-card">
             <h3>Tags</h3>
-            <div className="number">{loading ? '-' : stats.totalTags}</div>
+            <div className="number">{dataLoading ? '-' : stats.totalTags}</div>
           </div>
         </div>
         

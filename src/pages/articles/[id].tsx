@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { useAuth } from '@/lib/authContext';
 
 interface Article {
   id: number;
@@ -16,9 +17,12 @@ interface Article {
   updatedAt: string;
 }
 
+const API_BASE_URL = 'http://192.168.140.149:5003';
+
 export default function ArticleDetail() {
   const router = useRouter();
   const { id } = router.query;
+  const { isAuthenticated, loading: authLoading, user, logout } = useAuth();
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -29,12 +33,19 @@ export default function ArticleDetail() {
     tags: '',
   });
 
+  // Redirect to login if not authenticated
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (id) {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (isAuthenticated && id) {
       fetchArticle();
     }
-  }, [id]);
+  }, [id, isAuthenticated]);
 
   // Decode base64 GraphQL ID to numeric
   const decodeId = (id: string | string[]): number => {
@@ -53,7 +64,16 @@ export default function ArticleDetail() {
     if (!id) return;
     try {
       const numericId = decodeId(id);
-      const response = await fetch(`http://192.168.140.149:5003/api/articles?id=${numericId}`);
+      const response = await fetch(`${API_BASE_URL}/api/articles?id=${numericId}`, {
+        credentials: 'include',
+      });
+      
+      // Handle unauthorized
+      if (response.status === 401) {
+        logout();
+        return;
+      }
+      
       const data = await response.json();
       
       if (data && data.length > 0) {
@@ -92,11 +112,18 @@ export default function ArticleDetail() {
     }`;
     
     try {
-      const response = await fetch('http://192.168.140.149:5003/graphql', {
+      const response = await fetch(`${API_BASE_URL}/graphql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ query: mutation }),
       });
+      
+      // Handle unauthorized
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       
       const data = await response.json();
       
@@ -119,11 +146,18 @@ export default function ArticleDetail() {
     }`;
     
     try {
-      const response = await fetch('http://192.168.140.149:5003/graphql', {
+      const response = await fetch(`${API_BASE_URL}/graphql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ query: mutation }),
       });
+      
+      // Handle unauthorized
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       
       const data = await response.json();
       
@@ -135,10 +169,28 @@ export default function ArticleDetail() {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+  };
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleString();
   };
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -157,6 +209,15 @@ export default function ArticleDetail() {
         <Head>
           <title>Not Found - KB Portal</title>
         </Head>
+        <div className="header">
+          <h1><Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>📚 KB Portal</Link></h1>
+          <div>
+            <button onClick={handleLogout} className="btn" style={{ background: '#e74c3c', marginRight: '10px' }}>
+              Logout
+            </button>
+            <Link href="/" className="btn">Dashboard</Link>
+          </div>
+        </div>
         <div className="container" style={{ marginTop: '30px' }}>
           <div className="card">
             <h2>Article Not Found</h2>
@@ -176,6 +237,10 @@ export default function ArticleDetail() {
       <div className="header">
         <h1><Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>📚 KB Portal</Link></h1>
         <div>
+          <span style={{ marginRight: '15px' }}>Welcome, {user?.username || 'Admin'}</span>
+          <button onClick={handleLogout} className="btn" style={{ background: '#e74c3c', marginRight: '10px' }}>
+            Logout
+          </button>
           <Link href="/articles" className="btn">Back to Articles</Link>
         </div>
       </div>

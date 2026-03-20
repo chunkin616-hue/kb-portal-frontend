@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { login, getStoredUser } from '@/lib/auth';
 
 export default function Login() {
   const router = useRouter();
@@ -12,23 +13,26 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Check if already logged in
+  if (typeof window !== 'undefined') {
+    const user = getStoredUser();
+    if (user) {
+      router.push('/');
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // Simple validation - accept any credentials for now
-    if (form.username && form.password) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      localStorage.setItem('kb_token', 'demo-token');
-      localStorage.setItem('kb_user', JSON.stringify({
-        id: '1',
-        username: form.username,
-        email: `${form.username}@example.com`
-      }));
+    // Authenticate with backend
+    const result = await login(form.username, form.password);
+    
+    if (result.success) {
       router.push('/');
     } else {
-      setError('Please enter username and password');
+      setError(result.error || 'Login failed');
       setLoading(false);
     }
   };
@@ -55,6 +59,7 @@ export default function Login() {
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
                 required
                 placeholder="Enter your username"
+                autoComplete="username"
               />
             </div>
             
@@ -66,6 +71,7 @@ export default function Login() {
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
                 placeholder="Enter your password"
+                autoComplete="current-password"
               />
             </div>
             
