@@ -48,7 +48,8 @@ export default function ArticleDetail() {
   }, [id, isAuthenticated]);
 
   // Decode base64 GraphQL ID to numeric
-  const decodeId = (id: string | string[]): number => {
+  const decodeId = (id: string | string[] | undefined): number => {
+    if (!id) return 0;
     if (Array.isArray(id)) id = id[0];
     try {
       // GraphQL uses base64 encoding: "ArticleObject:1" -> "QXJ0aWNsZU9iamVjdDox"
