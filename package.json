@@ -1,4 +1,5 @@
 {
+  // CI Test trigger
   "name": "kb-portal-frontend",
   "version": "1.0.0",
   "private": true,
