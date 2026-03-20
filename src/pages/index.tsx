@@ -20,7 +20,7 @@ interface Article {
   categoryId: number | null;
 }
 
-const API_BASE_URL = 'http://192.168.140.149:5003';
+const API_BASE_URL = 'http://localhost:5003';
 
 export default function Home() {
   const router = useRouter();
@@ -194,7 +194,7 @@ export default function Home() {
         
         <div className="card">
           <h2>Quick Actions</h2>
-          <Link href="http://192.168.140.149:5003/graphql" target="_blank" className="btn">
+          <Link href="http://localhost:5003/graphql" target="_blank" className="btn">
             <i className="fas fa-code"></i> GraphQL Playground
           </Link>
           <Link href="/articles" className="btn" style={{ marginLeft: '10px' }}>

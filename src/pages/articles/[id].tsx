@@ -65,8 +65,28 @@ export default function ArticleDetail() {
     if (!id) return;
     try {
       const numericId = decodeId(id);
-      const response = await fetch(`${API_BASE_URL}/api/articles?id=${numericId}`, {
+      
+      // Use GraphQL to fetch single article by ID
+      const query = `query {
+        article(id: ${numericId}) {
+          id
+          title
+          content
+          author
+          status
+          tags
+          viewCount
+          categoryId
+          createdAt
+          updatedAt
+        }
+      }`;
+      
+      const response = await fetch(`${API_BASE_URL}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({ query }),
       });
       
       // Handle unauthorized
@@ -77,9 +97,11 @@ export default function ArticleDetail() {
       
       const data = await response.json();
       
-      if (data && data.length > 0) {
-        const art = data[0];
-        setArticle(art);
+      if (data.data?.article) {
+        const art = data.data.article;
+        // Decode the base64 GraphQL ID back to numeric ID
+        const decodedId = decodeId(art.id);
+        setArticle({ ...art, id: decodedId });
         setEditForm({
           title: art.title || '',
           content: art.content || '',

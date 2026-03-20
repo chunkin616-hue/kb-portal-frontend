@@ -11,7 +11,7 @@ interface Category {
   parentId: number | null;
 }
 
-const API_BASE_URL = 'http://192.168.140.149:5003';
+const API_BASE_URL = 'http://localhost:5003';
 
 export default function Categories() {
   const router = useRouter();
