@@ -5,11 +5,11 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://192.168.140.149:5003/api/:path*',
+        destination: 'http://192.168.140.149:5004/api/:path*',
       },
       {
         source: '/graphql',
-        destination: 'http://192.168.140.149:5003/graphql',
+        destination: 'http://192.168.140.149:5004/graphql',
       },
     ];
   },

@@ -17,7 +17,7 @@ interface Article {
   updatedAt: string;
 }
 
-const API_BASE_URL = 'http://localhost:5003';
+const API_BASE_URL = 'http://localhost:5004';
 
 export default function Articles() {
   const router = useRouter();

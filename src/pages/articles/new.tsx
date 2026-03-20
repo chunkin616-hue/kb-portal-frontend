@@ -9,7 +9,7 @@ interface Category {
   name: string;
 }
 
-const API_BASE_URL = 'http://localhost:5003';
+const API_BASE_URL = 'http://localhost:5004';
 
 export default function NewArticle() {
   const router = useRouter();

@@ -1,6 +1,6 @@
 // Authentication utilities for KB Portal Frontend
 
-const API_BASE_URL = 'http://localhost:5003';
+const API_BASE_URL = 'http://localhost:5004';
 
 export interface AuthUser {
   id: string;
