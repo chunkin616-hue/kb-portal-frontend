@@ -29,6 +29,7 @@ export default function ArticleDetail() {
     tags: '',
   });
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (id) {
       fetchArticle();
@@ -49,6 +50,7 @@ export default function ArticleDetail() {
   };
 
   const fetchArticle = async () => {
+    if (!id) return;
     try {
       const numericId = decodeId(id);
       const response = await fetch(`http://192.168.140.149:5003/api/articles?id=${numericId}`);
