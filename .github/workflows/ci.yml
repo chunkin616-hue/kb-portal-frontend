@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, develop, uat]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, uat]
 
 jobs:
   lint-and-build:
