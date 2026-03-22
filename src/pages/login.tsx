@@ -4,6 +4,19 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { login, getToken, checkAuth, getStoredUser } from '@/lib/auth';
 
+// Generate version number: YYYYMMDDHHSS
+const getVersion = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}${month}${day}${hours}${minutes}`;
+};
+
+const VERSION = getVersion();
+
 export default function Login() {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -104,6 +117,10 @@ export default function Login() {
           
           <p style={{ marginTop: '20px', textAlign: 'center' }}>
             <Link href="/">Back to Dashboard</Link>
+          </p>
+          
+          <p style={{ marginTop: '10px', textAlign: 'center', fontSize: '12px', color: '#888' }}>
+            Version: {VERSION}
           </p>
         </div>
       </div>
