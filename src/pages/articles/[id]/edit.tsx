@@ -22,9 +22,6 @@ interface Article {
   updatedAt: string;
 }
 
-// Use Next.js API routes (same origin)
-const API_BASE_URL = '';
-
 // Helper function to escape HTML to prevent XSS
 const escapeHtml = (text: string | undefined | null): string => {
   if (!text) return '';
@@ -38,7 +35,7 @@ const escapeHtml = (text: string | undefined | null): string => {
   return text.replace(/[&<>"']/g, (m) => map[m]);
 };
 
-export default function ArticleDetail() {
+export default function ArticleEdit() {
   const router = useRouter();
   const { id } = router.query;
   const { isAuthenticated, loading: authLoading, user, logout } = useAuth();
@@ -46,7 +43,7 @@ export default function ArticleDetail() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({
     title: '',
     content: '',
@@ -56,7 +53,6 @@ export default function ArticleDetail() {
   });
 
   // Redirect to login if not authenticated
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/login');
@@ -70,20 +66,6 @@ export default function ArticleDetail() {
     }
   }, [id, isAuthenticated]);
 
-  // Decode base64 GraphQL ID to numeric
-  const decodeId = (id: string | string[] | undefined): number => {
-    if (!id) return 0;
-    if (Array.isArray(id)) id = id[0];
-    try {
-      // GraphQL uses base64 encoding: "ArticleObject:1" -> "QXJ0aWNsZU9iamVjdDox"
-      const decoded = Buffer.from(id, 'base64').toString();
-      const parts = decoded.split(':');
-      return parseInt(parts[parts.length - 1], 10);
-    } catch {
-      return parseInt(id, 10);
-    }
-  };
-
   const fetchArticle = async () => {
     if (!id) return;
     try {
@@ -95,9 +77,14 @@ export default function ArticleDetail() {
         },
       });
       
-      // Handle unauthorized
       if (response.status === 401) {
         logout();
+        return;
+      }
+      
+      if (response.status === 404) {
+        alert('Article not found');
+        router.push('/articles');
         return;
       }
       
@@ -149,6 +136,7 @@ export default function ArticleDetail() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
     
     const categoryId = editForm.categoryId ? parseInt(editForm.categoryId) : null;
     
@@ -168,7 +156,6 @@ export default function ArticleDetail() {
         }),
       });
       
-      // Handle unauthorized
       if (response.status === 401) {
         logout();
         return;
@@ -177,11 +164,14 @@ export default function ArticleDetail() {
       const data = await response.json();
       
       if (data) {
-        setIsEditing(false);
-        fetchArticle();
+        alert('Article updated successfully!');
+        router.push(`/articles/${id}`);
       }
     } catch (e) {
       console.error('Error updating article:', e);
+      alert('Failed to update article');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -197,20 +187,17 @@ export default function ArticleDetail() {
         },
       });
       
-      // Handle unauthorized
       if (response.status === 401) {
         logout();
         return;
       }
       
-      // Handle 204 No Content (successful deletion)
       if (response.status === 204) {
         alert('Article deleted successfully!');
         router.push('/articles');
         return;
       }
       
-      // Handle other responses
       const data = await response.json();
       
       if (data && data.success) {
@@ -226,11 +213,6 @@ export default function ArticleDetail() {
     await logout();
   };
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleString();
-  };
-
   // Show loading while checking auth
   if (authLoading) {
     return (
@@ -240,7 +222,6 @@ export default function ArticleDetail() {
     );
   }
 
-  // Don't render if not authenticated (will redirect)
   if (!isAuthenticated) {
     return null;
   }
@@ -284,7 +265,7 @@ export default function ArticleDetail() {
   return (
     <>
       <Head>
-        <title>{escapeHtml(article.title) || 'Article'} - KB Portal</title>
+        <title>Edit: {escapeHtml(article.title) || 'Article'} - KB Portal</title>
       </Head>
       
       <div className="header">
@@ -294,120 +275,96 @@ export default function ArticleDetail() {
           <button onClick={handleLogout} className="btn" style={{ background: '#e74c3c', marginRight: '10px' }}>
             Logout
           </button>
-          <Link href="/articles" className="btn">Back to Articles</Link>
+          <Link href={`/articles/${id}`} className="btn">Back to Article</Link>
+          <Link href="/articles" className="btn" style={{ marginLeft: '10px' }}>Articles List</Link>
         </div>
       </div>
       
       <div className="container" style={{ marginTop: '30px' }}>
-        {isEditing ? (
-          <div className="card">
-            <h2>Edit Article</h2>
-            <form onSubmit={handleUpdate}>
-              <div className="form-group">
-                <label>Title</label>
-                <input
-                  type="text"
-                  value={editForm.title}
-                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Content</label>
-                <textarea
-                  value={editForm.content}
-                  onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                  rows={10}
-                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px' }}
-                />
-              </div>
-              <div className="form-group">
-                <label>Category</label>
-                {categoriesLoading ? (
-                  <p>Loading categories...</p>
-                ) : (
-                  <select
-                    value={editForm.categoryId}
-                    onChange={(e) => setEditForm({ ...editForm, categoryId: e.target.value })}
-                  >
-                    <option value="">Select a category</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              <div className="form-group">
-                <label>Status</label>
+        <div className="card">
+          <h2>Edit Article</h2>
+          <form onSubmit={handleUpdate}>
+            <div className="form-group">
+              <label>Title</label>
+              <input
+                type="text"
+                value={editForm.title}
+                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                required
+                style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px' }}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Content</label>
+              <textarea
+                value={editForm.content}
+                onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                rows={15}
+                style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontFamily: 'monospace' }}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Category</label>
+              {categoriesLoading ? (
+                <p>Loading categories...</p>
+              ) : (
                 <select
-                  value={editForm.status}
-                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  value={editForm.categoryId}
+                  onChange={(e) => setEditForm({ ...editForm, categoryId: e.target.value })}
+                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px' }}
                 >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
+                  <option value="">Select a category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
                 </select>
-              </div>
-              <div className="form-group">
-                <label>Tags (comma-separated)</label>
-                <input
-                  type="text"
-                  value={editForm.tags}
-                  onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })}
-                  placeholder="tag1, tag2, tag3"
-                />
-              </div>
-              <button type="submit" className="btn">Save Changes</button>
-              <button type="button" onClick={() => setIsEditing(false)} className="btn btn-secondary" style={{ marginLeft: '10px' }}>Cancel</button>
-            </form>
-          </div>
-        ) : (
-          <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '20px' }}>
-              <div>
-                <h1 style={{ fontSize: '28px', marginBottom: '10px' }}>{escapeHtml(article.title) || 'Untitled'}</h1>
-                <div style={{ color: '#7f8c8d', fontSize: '14px' }}>
-                  <span>By {article.author || 'Unknown'}</span>
-                  <span style={{ margin: '0 10px' }}>|</span>
-                  <span>Updated: {formatDate(article.updatedAt)}</span>
-                  <span style={{ margin: '0 10px' }}>|</span>
-                  <span className={`status ${article.status || 'draft'}`}>{article.status || 'draft'}</span>
-                </div>
-              </div>
-              <div>
-                <button onClick={() => setIsEditing(true)} className="btn">Edit</button>
-                <button onClick={handleDelete} className="btn btn-danger" style={{ marginLeft: '10px' }}>Delete</button>
-              </div>
+              )}
             </div>
             
-            {article.tags && (
-              <div style={{ marginBottom: '20px' }}>
-                {article.tags.split(',').map((tag, i) => (
-                  <span key={i} style={{ 
-                    display: 'inline-block', 
-                    background: '#e2e3e5', 
-                    padding: '4px 10px', 
-                    borderRadius: '12px', 
-                    fontSize: '12px',
-                    marginRight: '5px'
-                  }}>
-                    {escapeHtml(tag.trim())}
-                  </span>
-                ))}
-              </div>
-            )}
-            
-            <div style={{ 
-              padding: '20px', 
-              background: '#f8f9fa', 
-              borderRadius: '5px',
-              whiteSpace: 'pre-wrap',
-              minHeight: '200px'
-            }}>
-              {article.content || 'No content yet.'}
+            <div className="form-group">
+              <label>Status</label>
+              <select
+                value={editForm.status}
+                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px' }}
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
             </div>
-          </div>
-        )}
+            
+            <div className="form-group">
+              <label>Tags (comma-separated)</label>
+              <input
+                type="text"
+                value={editForm.tags}
+                onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })}
+                placeholder="tag1, tag2, tag3"
+                style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px' }}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button type="submit" className="btn" disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+              <Link href={`/articles/${id}`} className="btn btn-secondary">
+                Cancel
+              </Link>
+              <button 
+                type="button" 
+                onClick={handleDelete} 
+                className="btn btn-danger" 
+                style={{ marginLeft: 'auto' }}
+              >
+                Delete Article
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </>
   );
