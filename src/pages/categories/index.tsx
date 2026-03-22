@@ -64,6 +64,11 @@ export default function Categories() {
         return;
       }
       
+      if (!response.ok) {
+        console.error('Failed to fetch categories:', response.status);
+        return;
+      }
+      
       const data = await response.json();
       
       if (data) {
@@ -79,21 +84,17 @@ export default function Categories() {
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const mutation = `mutation {
-      createCategory(name: "${newCategory.name}", description: "${newCategory.description}") {
-        category {
-          id
-          name
-        }
-      }
-    }`;
-    
     try {
-      const response = await fetch(`${API_BASE_URL}/graphql`, {
+      const response = await fetch(`/api/categories`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ query: mutation }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('kb_jwt_token') || ''}`,
+        },
+        body: JSON.stringify({
+          name: newCategory.name,
+          description: newCategory.description
+        }),
       });
       
       // Handle unauthorized
@@ -102,12 +103,13 @@ export default function Categories() {
         return;
       }
       
-      const data = await response.json();
-      
-      if (data.data?.createCategory) {
+      if (response.ok) {
         setNewCategory({ name: '', description: '' });
         setShowForm(false);
         fetchCategories();
+      } else {
+        const errorData = await response.json();
+        console.error('Error creating category:', errorData.error);
       }
     } catch (e) {
       console.error('Error creating category:', e);
