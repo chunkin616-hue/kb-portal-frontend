@@ -1,6 +1,7 @@
-// Authentication utilities for KB Portal Frontend
+// Authentication utilities for KB Portal Frontend (JWT-based)
 
-const API_BASE_URL = 'http://localhost:5004';
+// Use Next.js API routes (same origin)
+const API_BASE_URL = ''; // Empty string for same-origin requests
 
 export interface AuthUser {
   id: string;
@@ -13,11 +14,57 @@ export interface AuthState {
   user: AuthUser | null;
 }
 
-// Check if user is authenticated
+export interface LoginResponse {
+  success: boolean;
+  token?: string;
+  username?: string;
+  expiresIn?: number;
+  error?: string;
+}
+
+// JWT token storage key
+const TOKEN_KEY = 'kb_jwt_token';
+const USER_KEY = 'kb_user';
+
+/**
+ * Get JWT token from localStorage
+ */
+export function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+/**
+ * Store JWT token in localStorage
+ */
+export function setToken(token: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+/**
+ * Remove JWT token from localStorage
+ */
+export function removeToken(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+// Check if user is authenticated using JWT
 export async function checkAuth(): Promise<AuthState> {
+  const token = getToken();
+  
+  if (!token) {
+    return { isAuthenticated: false, user: null };
+  }
+  
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/status`, {
-      credentials: 'include', // Important: include cookies
+    const response = await fetch(`/api/auth/verify`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
     });
     
     if (response.ok) {
@@ -28,6 +75,8 @@ export async function checkAuth(): Promise<AuthState> {
       };
     }
     
+    // Token invalid or expired - clean up
+    removeToken();
     return { isAuthenticated: false, user: null };
   } catch (error) {
     console.error('Auth check failed:', error);
@@ -35,37 +84,33 @@ export async function checkAuth(): Promise<AuthState> {
   }
 }
 
-// Login function - authenticates with backend
+// Login function - authenticates with backend using JWT
 export async function login(username: string, password: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const formData = new URLSearchParams();
-    formData.append('username', username);
-    formData.append('password', password);
-    
-    const response = await fetch(`${API_BASE_URL}/login`, {
+    const response = await fetch(`/api/auth/login`, {
       method: 'POST',
-      body: formData,
-      credentials: 'include', // Important: include cookies
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ username, password }),
     });
     
-    // Check if login was successful (redirects to / on success)
-    if (response.ok || response.redirected) {
-      // Verify by checking auth status
-      const authState = await checkAuth();
-      if (authState.isAuthenticated) {
-        // Store username in localStorage for display
-        localStorage.setItem('kb_user', JSON.stringify({
-          id: '1',
-          username: username,
-        }));
-        return { success: true };
-      }
+    const data: LoginResponse = await response.json();
+    
+    if (response.ok && data.success && data.token) {
+      // Store JWT token in localStorage
+      setToken(data.token);
+      
+      // Store user info in localStorage
+      localStorage.setItem(USER_KEY, JSON.stringify({
+        id: '1',
+        username: username,
+      }));
+      
+      return { success: true };
     }
     
-    return { success: false, error: 'Invalid username or password' };
+    return { success: false, error: data.error || 'Invalid username or password' };
   } catch (error) {
     console.error('Login failed:', error);
     return { success: false, error: 'Login failed. Please try again.' };
@@ -74,23 +119,29 @@ export async function login(username: string, password: string): Promise<{ succe
 
 // Logout function
 export async function logout(): Promise<void> {
+  const token = getToken();
+  
+  // Notify backend (optional - JWT is stateless)
   try {
-    await fetch(`${API_BASE_URL}/logout`, {
-      method: 'GET',
-      credentials: 'include',
+    await fetch(`/api/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json',
+      },
     });
   } catch (error) {
     console.error('Logout error:', error);
   }
   
   // Clear localStorage
-  localStorage.removeItem('kb_token');
-  localStorage.removeItem('kb_user');
+  removeToken();
+  localStorage.removeItem(USER_KEY);
 }
 
 // Get stored user from localStorage
 export function getStoredUser(): AuthUser | null {
-  const userStr = localStorage.getItem('kb_user');
+  const userStr = localStorage.getItem(USER_KEY);
   if (userStr) {
     try {
       return JSON.parse(userStr);
@@ -101,18 +152,27 @@ export function getStoredUser(): AuthUser | null {
   return null;
 }
 
-// Authenticated fetch wrapper for GraphQL
+// Authenticated fetch wrapper for API calls
 export async function authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = getToken();
+  
+  const headers = {
+    ...options.headers,
+    'Authorization': token ? `Bearer ${token}` : '',
+    'Content-Type': 'application/json',
+  };
+  
   const response = await fetch(url, {
     ...options,
-    credentials: 'include',
+    headers,
   });
   
   // If unauthorized, redirect to login
   if (response.status === 401) {
     // Clear any stored auth data
-    localStorage.removeItem('kb_token');
-    localStorage.removeItem('kb_user');
+    removeToken();
+    localStorage.removeItem(USER_KEY);
+    
     // Redirect to login (only in browser)
     if (typeof window !== 'undefined') {
       window.location.href = '/login';
@@ -120,4 +180,12 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
   }
   
   return response;
+}
+
+// Authenticated GraphQL fetch wrapper (not used in new architecture)
+export async function authenticatedGraphQLFetch(query: string, variables?: object): Promise<Response> {
+  return authenticatedFetch(`/graphql`, {
+    method: 'POST',
+    body: JSON.stringify({ query, variables }),
+  });
 }

@@ -11,7 +11,21 @@ interface Category {
   parentId: number | null;
 }
 
-const API_BASE_URL = 'http://localhost:5004';
+// Use Next.js API routes (same origin)
+const API_BASE_URL = '';
+
+// Helper function to escape HTML to prevent XSS
+const escapeHtml = (text: string | undefined | null): string => {
+  if (!text) return '';
+  const map: { [key: string]: string } = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+};
 
 export default function Categories() {
   const router = useRouter();
@@ -36,24 +50,12 @@ export default function Categories() {
 
   const fetchCategories = async () => {
     try {
-      const query = `query {
-        allCategories {
-          edges {
-            node {
-              id
-              name
-              description
-              parentId
-            }
-          }
-        }
-      }`;
-      
-      const response = await fetch(`${API_BASE_URL}/graphql`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ query }),
+      const response = await fetch(`/api/categories`, {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('kb_jwt_token') || ''}`,
+        },
       });
       
       // Handle unauthorized
@@ -64,8 +66,8 @@ export default function Categories() {
       
       const data = await response.json();
       
-      if (data.data?.allCategories?.edges) {
-        setCategories(data.data.allCategories.edges.map((edge: any) => edge.node));
+      if (data) {
+        setCategories(data);
       }
     } catch (e) {
       console.error('Error fetching categories:', e);
@@ -197,8 +199,8 @@ export default function Categories() {
                 {categories.map((category) => (
                   <tr key={category.id}>
                     <td>{category.id}</td>
-                    <td>{category.name}</td>
-                    <td>{category.description || '-'}</td>
+                    <td>{escapeHtml(category.name)}</td>
+                    <td>{escapeHtml(category.description) || '-'}</td>
                     <td>{category.parentId || '-'}</td>
                   </tr>
                 ))}

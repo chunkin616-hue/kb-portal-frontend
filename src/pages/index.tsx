@@ -7,8 +7,10 @@ import { useAuth } from '@/lib/authContext';
 interface Stats {
   totalArticles: number;
   publishedArticles: number;
+  draftArticles: number;
   totalCategories: number;
   totalTags: number;
+  totalViews: number;
 }
 
 interface Article {
@@ -18,9 +20,21 @@ interface Article {
   status: string;
   updatedAt: string;
   categoryId: number | null;
+  categoryName?: string;
 }
 
-const API_BASE_URL = 'http://localhost:5004';
+// Helper function to escape HTML to prevent XSS
+const escapeHtml = (text: string | undefined | null): string => {
+  if (!text) return '';
+  const map: { [key: string]: string } = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+};
 
 export default function Home() {
   const router = useRouter();
@@ -28,8 +42,10 @@ export default function Home() {
   const [stats, setStats] = useState<Stats>({
     totalArticles: 0,
     publishedArticles: 0,
+    draftArticles: 0,
     totalCategories: 0,
     totalTags: 0,
+    totalViews: 0,
   });
   const [articles, setArticles] = useState<Article[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
@@ -50,17 +66,12 @@ export default function Home() {
 
   const fetchStats = async () => {
     try {
-      const query = `query {
-        allArticles { edges { node { id status } } }
-        allCategories { edges { node { id } } }
-        allTags { edges { node { id } } }
-      }`;
-      
-      const response = await fetch(`${API_BASE_URL}/graphql`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ query }),
+      const response = await fetch('/api/stats', {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('kb_jwt_token') || ''}`,
+        },
       });
       
       // Handle unauthorized
@@ -71,19 +82,14 @@ export default function Home() {
       
       const data = await response.json();
       
-      if (data.data) {
-        const articlesEdges = data.data.allArticles?.edges || [];
-        const categoriesEdges = data.data.allCategories?.edges || [];
-        const tagsEdges = data.data.allTags?.edges || [];
-        
-        // Count published articles
-        const publishedCount = articlesEdges.filter((edge: any) => edge.node.status === 'published').length;
-        
+      if (data) {
         setStats({
-          totalArticles: articlesEdges.length,
-          totalCategories: categoriesEdges.length,
-          totalTags: tagsEdges.length,
-          publishedArticles: publishedCount,
+          totalArticles: data.totalArticles || 0,
+          publishedArticles: data.publishedArticles || 0,
+          draftArticles: data.draftArticles || 0,
+          totalCategories: data.totalCategories || 0,
+          totalTags: data.totalTags || 0,
+          totalViews: data.totalViews || 0,
         });
       }
     } catch (e) {
@@ -95,26 +101,12 @@ export default function Home() {
 
   const fetchRecentArticles = async () => {
     try {
-      const query = `query {
-        allArticles(first: 5) {
-          edges {
-            node {
-              id
-              title
-              author
-              status
-              updatedAt
-              categoryId
-            }
-          }
-        }
-      }`;
-      
-      const response = await fetch(`${API_BASE_URL}/graphql`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ query }),
+      const response = await fetch('/api/articles?limit=5', {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('kb_jwt_token') || ''}`,
+        },
       });
       
       // Handle unauthorized
@@ -125,8 +117,8 @@ export default function Home() {
       
       const data = await response.json();
       
-      if (data.data?.allArticles?.edges) {
-        setArticles(data.data.allArticles.edges.map((edge: any) => edge.node));
+      if (data) {
+        setArticles(data.slice(0, 5)); // Take first 5 articles
       }
     } catch (e) {
       console.error('Error fetching articles:', e);
@@ -194,8 +186,8 @@ export default function Home() {
         
         <div className="card">
           <h2>Quick Actions</h2>
-          <Link href="http://localhost:5004/graphql" target="_blank" className="btn">
-            <i className="fas fa-code"></i> GraphQL Playground
+          <Link href="/api/health" target="_blank" className="btn">
+            <i className="fas fa-heartbeat"></i> API Health Check
           </Link>
           <Link href="/articles" className="btn" style={{ marginLeft: '10px' }}>
             <i className="fas fa-list"></i> Browse Articles
@@ -223,8 +215,8 @@ export default function Home() {
               <tbody>
                 {articles.map((article) => (
                   <tr key={article.id}>
-                    <td>{article.title || 'Untitled'}</td>
-                    <td>{article.categoryId || '-'}</td>
+                    <td>{escapeHtml(article.title) || 'Untitled'}</td>
+                    <td>{article.categoryName || '-'}</td>
                     <td>{article.author || '-'}</td>
                     <td>
                       <span className={`status ${article.status || 'draft'}`}>

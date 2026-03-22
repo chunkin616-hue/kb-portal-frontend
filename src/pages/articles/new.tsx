@@ -9,7 +9,8 @@ interface Category {
   name: string;
 }
 
-const API_BASE_URL = 'http://localhost:5004';
+// Use Next.js API routes (same origin)
+const API_BASE_URL = '';
 
 export default function NewArticle() {
   const router = useRouter();
@@ -40,22 +41,12 @@ export default function NewArticle() {
 
   const fetchCategories = async () => {
     try {
-      const query = `query {
-        allCategories {
-          edges {
-            node {
-              id
-              name
-            }
-          }
-        }
-      }`;
-      
-      const response = await fetch(`${API_BASE_URL}/graphql`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ query }),
+      const response = await fetch(`/api/categories`, {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('kb_jwt_token') || ''}`,
+        },
       });
       
       // Handle unauthorized
@@ -66,8 +57,8 @@ export default function NewArticle() {
       
       const data = await response.json();
       
-      if (data.data?.allCategories?.edges) {
-        setCategories(data.data.allCategories.edges.map((edge: any) => edge.node));
+      if (data) {
+        setCategories(data);
       }
     } catch (e) {
       console.error('Error fetching categories:', e);
@@ -81,28 +72,21 @@ export default function NewArticle() {
     
     const categoryId = form.categoryId ? parseInt(form.categoryId) : null;
     
-    const mutation = `mutation {
-      createArticle(
-        title: "${form.title}",
-        content: "${form.content.replace(/"/g, '\\"')}",
-        ${categoryId ? `categoryId: ${categoryId},` : ''}
-        author: "${form.author}",
-        status: "${form.status}",
-        tags: "${form.tags}"
-      ) {
-        article {
-          id
-          title
-        }
-      }
-    }`;
-    
     try {
-      const response = await fetch(`${API_BASE_URL}/graphql`, {
+      const response = await fetch(`/api/articles`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ query: mutation }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('kb_jwt_token') || ''}`,
+        },
+        body: JSON.stringify({
+          title: form.title,
+          content: form.content,
+          categoryId: categoryId,
+          author: form.author,
+          status: form.status,
+          tags: form.tags,
+        }),
       });
       
       // Handle unauthorized
@@ -113,8 +97,8 @@ export default function NewArticle() {
       
       const data = await response.json();
       
-      if (data.data?.createArticle) {
-        router.push(`/articles/${data.data.createArticle.article.id}`);
+      if (data && data.id) {
+        router.push(`/articles/${data.id}`);
       }
     } catch (e) {
       console.error('Error creating article:', e);

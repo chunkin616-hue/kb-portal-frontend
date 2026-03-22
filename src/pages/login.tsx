@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { login, getStoredUser } from '@/lib/auth';
+import { login, getToken, checkAuth, getStoredUser } from '@/lib/auth';
 
 export default function Login() {
   const router = useRouter();
@@ -12,13 +12,28 @@ export default function Login() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checked, setChecked] = useState(false);
 
-  // Check if already logged in
-  if (typeof window !== 'undefined') {
-    const user = getStoredUser();
-    if (user) {
-      router.push('/');
-    }
+  // Check if already logged in (only once on mount)
+  useEffect(() => {
+    const checkLogin = async () => {
+      // Check JWT token exists
+      const token = getToken();
+      if (token) {
+        // Verify with backend
+        const authState = await checkAuth();
+        if (authState.isAuthenticated) {
+          router.push('/');
+        }
+      }
+      setChecked(true);
+    };
+    checkLogin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!checked) {
+    return null; // or a loading spinner
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,12 +41,19 @@ export default function Login() {
     setError('');
     setLoading(true);
 
+    console.log('Submitting login for:', form.username);
+
     // Authenticate with backend
     const result = await login(form.username, form.password);
     
+    console.log('Login result:', result);
+    
     if (result.success) {
-      router.push('/');
+      console.log('Redirecting to /');
+      // Use window.location to avoid Next.js router loop
+      window.location.href = '/';
     } else {
+      console.log('Login failed:', result.error);
       setError(result.error || 'Login failed');
       setLoading(false);
     }

@@ -47,6 +47,7 @@ export default function ArticleDetail() {
   const [loading, setLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editForm, setEditForm] = useState({
     title: '',
     content: '',
@@ -186,8 +187,7 @@ export default function ArticleDetail() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this article?')) return;
-    
+    setShowDeleteModal(false);
     try {
       const response = await fetch(`/api/articles/${id}`, {
         method: 'DELETE',
@@ -376,7 +376,7 @@ export default function ArticleDetail() {
               </div>
               <div>
                 <button onClick={() => setIsEditing(true)} className="btn">Edit</button>
-                <button onClick={handleDelete} className="btn btn-danger" style={{ marginLeft: '10px' }}>Delete</button>
+                <button onClick={() => setShowDeleteModal(true)} className="btn btn-danger" style={{ marginLeft: '10px' }}>Delete</button>
               </div>
             </div>
             
@@ -409,6 +409,109 @@ export default function ArticleDetail() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              backgroundColor: '#fee2e2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18"></path>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            </div>
+            <h2 style={{
+              margin: '0 0 12px',
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#1f2937',
+            }}>
+              確認刪除
+            </h2>
+            <p style={{
+              margin: '0 0 24px',
+              fontSize: '15px',
+              color: '#6b7280',
+              lineHeight: '1.5',
+            }}>
+              你確定要刪除呢篇文章嗎？
+            </p>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center',
+            }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                style={{
+                  padding: '10px 24px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  transition: 'background-color 0.2s',
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#d1d5db'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleDelete}
+                style={{
+                  padding: '10px 24px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  transition: 'background-color 0.2s',
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#b91c1c'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
+              >
+                刪除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

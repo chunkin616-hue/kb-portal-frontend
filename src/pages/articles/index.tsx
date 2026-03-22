@@ -17,7 +17,21 @@ interface Article {
   updatedAt: string;
 }
 
-const API_BASE_URL = 'http://localhost:5004';
+// Use Next.js API routes (same origin)
+const API_BASE_URL = '';
+
+// Helper function to escape HTML to prevent XSS
+const escapeHtml = (text: string | undefined | null): string => {
+  if (!text) return '';
+  const map: { [key: string]: string } = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+};
 
 export default function Articles() {
   const router = useRouter();
@@ -42,30 +56,12 @@ export default function Articles() {
 
   const fetchArticles = async () => {
     try {
-      const query = `query {
-        allArticles(first: 100) {
-          edges {
-            node {
-              id
-              title
-              content
-              author
-              status
-              tags
-              viewCount
-              categoryId
-              createdAt
-              updatedAt
-            }
-          }
-        }
-      }`;
-      
-      const response = await fetch(`${API_BASE_URL}/graphql`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ query }),
+      const response = await fetch(`/api/articles`, {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('kb_jwt_token') || ''}`,
+        },
       });
       
       // Handle unauthorized
@@ -76,8 +72,8 @@ export default function Articles() {
       
       const data = await response.json();
       
-      if (data.data?.allArticles?.edges) {
-        setArticles(data.data.allArticles.edges.map((edge: any) => edge.node));
+      if (data) {
+        setArticles(data);
       }
     } catch (e) {
       console.error('Error fetching articles:', e);
@@ -181,7 +177,7 @@ export default function Articles() {
                 {filteredArticles.map((article) => (
                   <tr key={article.id}>
                     <td>
-                      <Link href={`/articles/${article.id}`}>{article.title || 'Untitled'}</Link>
+                      <Link href={`/articles/${article.id}`}>{escapeHtml(article.title) || 'Untitled'}</Link>
                     </td>
                     <td>{article.author || '-'}</td>
                     <td>

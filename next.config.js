@@ -1,18 +1,22 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  async rewrites() {
+  poweredByHeader: false,
+  generateEtags: false,
+  // Disable caching for development
+  headers: async () => {
     return [
       {
-        source: '/api/:path*',
-        destination: 'http://192.168.140.149:5004/api/:path*',
-      },
-      {
-        source: '/graphql',
-        destination: 'http://192.168.140.149:5004/graphql',
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
       },
     ];
   },
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig
