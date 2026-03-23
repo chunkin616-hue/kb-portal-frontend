@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useAuth } from '@/lib/authContext';
+import ConfirmModal from '@/components/ConfirmModal';
 
 interface Category {
   id: number;
@@ -51,6 +52,7 @@ export default function ArticleEdit() {
     status: 'draft',
     tags: '',
   });
+  const [deleteModal, setDeleteModal] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -60,11 +62,12 @@ export default function ArticleEdit() {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (isAuthenticated && id) {
+    if (router.isReady && isAuthenticated && id) {
       fetchArticle();
       fetchCategories();
     }
-  }, [id, isAuthenticated]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, id, isAuthenticated]);
 
   const fetchArticle = async () => {
     if (!id) return;
@@ -176,8 +179,6 @@ export default function ArticleEdit() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this article?')) return;
-    
     try {
       const response = await fetch(`/api/articles/${id}`, {
         method: 'DELETE',
@@ -206,6 +207,8 @@ export default function ArticleEdit() {
       }
     } catch (e) {
       console.error('Error deleting article:', e);
+    } finally {
+      setDeleteModal(false);
     }
   };
 
@@ -356,7 +359,7 @@ export default function ArticleEdit() {
               </Link>
               <button 
                 type="button" 
-                onClick={handleDelete} 
+                onClick={() => setDeleteModal(true)} 
                 className="btn btn-danger" 
                 style={{ marginLeft: 'auto' }}
               >
@@ -366,6 +369,17 @@ export default function ArticleEdit() {
           </form>
         </div>
       </div>
+
+      <ConfirmModal
+        show={deleteModal}
+        title="Delete Article"
+        message="Are you sure you want to delete this article? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteModal(false)}
+        danger
+      />
     </>
   );
 }
