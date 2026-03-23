@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     res.status(200).json({
       status: 'ok',
-      version: '1.0.1.20260323',
+      version: 'v1.0.2',
       port: process.env.PORT || 3003,
       database: dbResult.rows.length > 0 ? 'connected' : 'error',
       timestamp: new Date().toISOString(),

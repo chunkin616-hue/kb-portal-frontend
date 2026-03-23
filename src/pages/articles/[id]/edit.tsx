@@ -62,11 +62,12 @@ export default function ArticleEdit() {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (isAuthenticated && id) {
+    if (router.isReady && isAuthenticated && id) {
       fetchArticle();
       fetchCategories();
     }
-  }, [id, isAuthenticated]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, id, isAuthenticated]);
 
   const fetchArticle = async () => {
     if (!id) return;
