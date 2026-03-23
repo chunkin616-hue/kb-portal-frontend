@@ -4,15 +4,13 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { login, getToken, checkAuth, getStoredUser } from '@/lib/auth';
 
-// Generate version number: YYYYMMDDHHSS
+// Generate version number: 1.0.1.YYYYMMDD
 const getVersion = () => {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  return `${year}${month}${day}${hours}${minutes}`;
+  return `1.0.1.${year}${month}${day}`;
 };
 
 const VERSION = getVersion();

@@ -20,11 +20,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       case 'GET':
         await handleGetTag(req, res, tagId);
         break;
+      case 'PUT':
+        await handleUpdateTag(req, res, tagId);
+        break;
       case 'DELETE':
         await handleDeleteTag(req, res, tagId);
         break;
       default:
-        res.setHeader('Allow', ['GET', 'DELETE']);
+        res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
         res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
   } catch (error) {
@@ -46,6 +49,39 @@ async function handleGetTag(req: NextApiRequest, res: NextApiResponse, tagId: nu
   if (result.rows.length === 0) {
     return res.status(404).json({ error: 'Tag not found' });
   }
+  
+  res.status(200).json(result.rows[0]);
+}
+
+async function handleUpdateTag(req: NextApiRequest, res: NextApiResponse, tagId: number) {
+  const { name, description } = req.body;
+  
+  if (!name) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+  
+  // Check if tag exists
+  const checkResult = await query('SELECT id FROM kb_tags WHERE id = $1', [tagId]);
+  
+  if (checkResult.rows.length === 0) {
+    return res.status(404).json({ error: 'Tag not found' });
+  }
+  
+  // Check if name is already taken by another tag
+  const duplicateResult = await query('SELECT id FROM kb_tags WHERE name = $1 AND id != $2', [name, tagId]);
+  
+  if (duplicateResult.rows.length > 0) {
+    return res.status(409).json({ error: 'Tag with this name already exists' });
+  }
+  
+  const sql = `
+    UPDATE kb_tags 
+    SET name = $1, description = $2
+    WHERE id = $3
+    RETURNING id, name, description, created_at as "createdAt"
+  `;
+  
+  const result = await query(sql, [name, description || '', tagId]);
   
   res.status(200).json(result.rows[0]);
 }

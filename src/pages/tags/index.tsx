@@ -5,16 +5,12 @@ import Head from 'next/head';
 import { useAuth } from '@/lib/authContext';
 import ConfirmModal from '@/components/ConfirmModal';
 
-interface Category {
+interface Tag {
   id: number;
   name: string;
   description: string;
-  parentId: number | null;
-  createdAt?: string;
+  createdAt: string;
 }
-
-// Use Next.js API routes (same origin)
-const API_BASE_URL = '';
 
 // Helper function to escape HTML to prevent XSS
 const escapeHtml = (text: string | undefined | null): string => {
@@ -29,17 +25,17 @@ const escapeHtml = (text: string | undefined | null): string => {
   return text.replace(/[&<>"']/g, (m) => map[m]);
 };
 
-export default function Categories() {
+export default function Tags() {
   const router = useRouter();
   const { isAuthenticated, loading, user, logout } = useAuth();
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [newCategory, setNewCategory] = useState({ name: '', description: '' });
   const [showForm, setShowForm] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [newTag, setNewTag] = useState({ name: '', description: '' });
+  const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [editForm, setEditForm] = useState({ name: '', description: '' });
   const [error, setError] = useState('');
-  const [deleteModal, setDeleteModal] = useState<{ show: boolean; categoryId: number | null }>({ show: false, categoryId: null });
+  const [deleteModal, setDeleteModal] = useState<{ show: boolean; tagId: number | null }>({ show: false, tagId: null });
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -50,13 +46,13 @@ export default function Categories() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchCategories();
+      fetchTags();
     }
   }, [isAuthenticated]);
 
-  const fetchCategories = async () => {
+  const fetchTags = async () => {
     try {
-      const response = await fetch(`/api/categories`, {
+      const response = await fetch(`/api/tags`, {
         method: 'GET',
         headers: { 
           'Content-Type': 'application/json',
@@ -64,79 +60,74 @@ export default function Categories() {
         },
       });
       
-      // Handle unauthorized
       if (response.status === 401) {
         logout();
         return;
       }
       
       if (!response.ok) {
-        console.error('Failed to fetch categories:', response.status);
+        console.error('Failed to fetch tags:', response.status);
         return;
       }
       
       const data = await response.json();
-      
-      if (data) {
-        setCategories(data);
-      }
+      setTags(data);
     } catch (e) {
-      console.error('Error fetching categories:', e);
+      console.error('Error fetching tags:', e);
     } finally {
       setDataLoading(false);
     }
   };
 
-  const handleCreateCategory = async (e: React.FormEvent) => {
+  const handleCreateTag = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
     try {
-      const response = await fetch(`/api/categories`, {
+      const response = await fetch(`/api/tags`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('kb_jwt_token') || ''}`,
         },
         body: JSON.stringify({
-          name: newCategory.name.trim(),
-          description: newCategory.description.trim()
+          name: newTag.name.trim(),
+          description: newTag.description.trim()
         }),
       });
       
-      // Handle unauthorized
       if (response.status === 401) {
         logout();
         return;
       }
       
       if (response.ok) {
-        setNewCategory({ name: '', description: '' });
+        setNewTag({ name: '', description: '' });
         setShowForm(false);
-        fetchCategories();
+        fetchTags();
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Failed to create category');
+        setError(errorData.error || 'Failed to create tag');
       }
     } catch (e) {
-      console.error('Error creating category:', e);
-      setError('Failed to create category');
+      console.error('Error creating tag:', e);
+      setError('Failed to create tag');
     }
   };
 
-  const handleEditCategory = (category: Category) => {
-    setEditingCategory(category);
-    setEditForm({ name: category.name, description: category.description || '' });
+  const handleEditTag = (tag: Tag) => {
+    setEditingTag(tag);
+    setEditForm({ name: tag.name, description: tag.description || '' });
     setError('');
   };
 
-  const handleUpdateCategory = async (e: React.FormEvent) => {
+  const handleUpdateTag = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingCategory) return;
+    if (!editingTag) return;
     setError('');
     
     try {
-      const response = await fetch(`/api/categories/${editingCategory.id}`, {
+      const response = await fetch(`/api/tags/${editingTag.id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -148,38 +139,31 @@ export default function Categories() {
         }),
       });
       
-      // Handle unauthorized
       if (response.status === 401) {
         logout();
         return;
       }
       
       if (response.ok) {
-        setEditingCategory(null);
+        setEditingTag(null);
         setEditForm({ name: '', description: '' });
-        fetchCategories();
+        fetchTags();
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Failed to update category');
+        setError(errorData.error || 'Failed to update tag');
       }
     } catch (e) {
-      console.error('Error updating category:', e);
-      setError('Failed to update category');
+      console.error('Error updating tag:', e);
+      setError('Failed to update tag');
     }
   };
 
-  const handleCancelEdit = () => {
-    setEditingCategory(null);
-    setEditForm({ name: '', description: '' });
-    setError('');
-  };
-
-  const handleDeleteCategory = async () => {
-    const categoryId = deleteModal.categoryId;
-    if (!categoryId) return;
+  const handleDeleteTag = async () => {
+    const tagId = deleteModal.tagId;
+    if (!tagId) return;
     
     try {
-      const response = await fetch(`/api/categories/${categoryId}`, {
+      const response = await fetch(`/api/tags/${tagId}`, {
         method: 'DELETE',
         headers: { 
           'Content-Type': 'application/json',
@@ -187,28 +171,38 @@ export default function Categories() {
         },
       });
       
-      // Handle unauthorized
       if (response.status === 401) {
         logout();
         return;
       }
       
       if (response.ok || response.status === 204) {
-        fetchCategories();
+        fetchTags();
       } else {
         const errorData = await response.json();
-        alert(errorData.error || 'Failed to delete category');
+        alert(errorData.error || 'Failed to delete tag');
       }
     } catch (e) {
-      console.error('Error deleting category:', e);
-      alert('Failed to delete category');
+      console.error('Error deleting tag:', e);
+      alert('Failed to delete tag');
     } finally {
-      setDeleteModal({ show: false, categoryId: null });
+      setDeleteModal({ show: false, tagId: null });
     }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTag(null);
+    setEditForm({ name: '', description: '' });
+    setError('');
   };
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  const formatDate = (dateStr: string | undefined | null) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString();
   };
 
   // Show loading while checking auth
@@ -228,7 +222,7 @@ export default function Categories() {
   return (
     <>
       <Head>
-        <title>Categories - KB Portal</title>
+        <title>Tags - KB Portal</title>
       </Head>
       
       <div className="header">
@@ -245,22 +239,22 @@ export default function Categories() {
       <div className="container" style={{ marginTop: '30px' }}>
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2>Categories</h2>
+            <h2>Tags</h2>
             <button onClick={() => { setShowForm(!showForm); setError(''); }} className="btn">
-              {showForm ? 'Cancel' : 'New Category'}
+              {showForm ? 'Cancel' : 'New Tag'}
             </button>
           </div>
           
           {showForm && (
-            <form onSubmit={handleCreateCategory} style={{ marginBottom: '20px', padding: '20px', background: '#f8f9fa', borderRadius: '5px' }}>
+            <form onSubmit={handleCreateTag} style={{ marginBottom: '20px', padding: '20px', background: '#f8f9fa', borderRadius: '5px' }}>
               {error && <p style={{ color: 'red', marginBottom: '10px' }}>{error}</p>}
               <div className="form-group">
                 <label>Name</label>
                 <input
                   type="text"
-                  value={newCategory.name}
-                  onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                  placeholder="e.g., Programming, DevOps, Documentation"
+                  value={newTag.name}
+                  onChange={(e) => setNewTag({ ...newTag, name: e.target.value })}
+                  placeholder="e.g., Python, API, Tutorial"
                   required
                 />
               </div>
@@ -268,19 +262,19 @@ export default function Categories() {
                 <label>Description</label>
                 <input
                   type="text"
-                  value={newCategory.description}
-                  onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                  value={newTag.description}
+                  onChange={(e) => setNewTag({ ...newTag, description: e.target.value })}
                   placeholder="Optional description"
                 />
               </div>
-              <button type="submit" className="btn">Create Category</button>
+              <button type="submit" className="btn">Create Tag</button>
             </form>
           )}
           
           {dataLoading ? (
             <p className="loading">Loading...</p>
-          ) : categories.length === 0 ? (
-            <p>No categories yet. Create your first category!</p>
+          ) : tags.length === 0 ? (
+            <p>No tags yet. Create your first tag!</p>
           ) : (
             <table>
               <thead>
@@ -288,27 +282,27 @@ export default function Categories() {
                   <th>ID</th>
                   <th>Name</th>
                   <th>Description</th>
-                  <th>Parent ID</th>
+                  <th>Created</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {categories.map((category) => (
-                  <tr key={category.id}>
-                    <td>{category.id}</td>
-                    <td>{escapeHtml(category.name)}</td>
-                    <td>{escapeHtml(category.description) || '-'}</td>
-                    <td>{category.parentId || '-'}</td>
+                {tags.map((tag) => (
+                  <tr key={tag.id}>
+                    <td>{tag.id}</td>
+                    <td>{escapeHtml(tag.name)}</td>
+                    <td>{escapeHtml(tag.description) || '-'}</td>
+                    <td>{formatDate(tag.createdAt)}</td>
                     <td>
                       <button 
-                        onClick={() => handleEditCategory(category)} 
+                        onClick={() => handleEditTag(tag)} 
                         className="btn"
                         style={{ background: '#3498db', marginRight: '5px', padding: '5px 10px', fontSize: '12px' }}
                       >
                         Edit
                       </button>
                       <button 
-                        onClick={() => setDeleteModal({ show: true, categoryId: category.id })} 
+                        onClick={() => setDeleteModal({ show: true, tagId: tag.id })} 
                         className="btn"
                         style={{ background: '#e74c3c', padding: '5px 10px', fontSize: '12px' }}
                       >
@@ -321,9 +315,9 @@ export default function Categories() {
             </table>
           )}
         </div>
-
+        
         {/* Edit Modal */}
-        {editingCategory && (
+        {editingTag && (
           <div style={{
             position: 'fixed',
             top: 0,
@@ -337,8 +331,8 @@ export default function Categories() {
             zIndex: 1000
           }}>
             <div className="card" style={{ width: '400px', maxWidth: '90%' }}>
-              <h3>Edit Category</h3>
-              <form onSubmit={handleUpdateCategory}>
+              <h3>Edit Tag</h3>
+              <form onSubmit={handleUpdateTag}>
                 {error && <p style={{ color: 'red', marginBottom: '10px' }}>{error}</p>}
                 <div className="form-group">
                   <label>Name</label>
@@ -358,7 +352,7 @@ export default function Categories() {
                   />
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button type="submit" className="btn">Update Category</button>
+                  <button type="submit" className="btn">Update Tag</button>
                   <button type="button" onClick={handleCancelEdit} className="btn" style={{ background: '#95a5a6' }}>Cancel</button>
                 </div>
               </form>
@@ -369,12 +363,12 @@ export default function Categories() {
 
       <ConfirmModal
         show={deleteModal.show}
-        title="Delete Category"
-        message="Are you sure you want to delete this category? This action cannot be undone."
+        title="Delete Tag"
+        message="Are you sure you want to delete this tag? This action cannot be undone."
         confirmText="Delete"
         cancelText="Cancel"
-        onConfirm={handleDeleteCategory}
-        onCancel={() => setDeleteModal({ show: false, categoryId: null })}
+        onConfirm={handleDeleteTag}
+        onCancel={() => setDeleteModal({ show: false, tagId: null })}
         danger
       />
     </>
