@@ -1,6 +1,6 @@
 {
   "name": "kb-portal-frontend",
-  "version": "1.0.2",
+  "version": "1.0.3-20260324122400",
   "private": true,
   "scripts": {
     "dev": "next dev -p $PORT",

@@ -3,14 +3,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useAuth } from '@/lib/authContext';
-import ConfirmModal from '@/components/ConfirmModal';
 
 interface Category {
   id: number;
   name: string;
   description: string;
   parentId: number | null;
-  createdAt?: string;
 }
 
 // Use Next.js API routes (same origin)
@@ -36,10 +34,9 @@ export default function Categories() {
   const [dataLoading, setDataLoading] = useState(true);
   const [newCategory, setNewCategory] = useState({ name: '', description: '' });
   const [showForm, setShowForm] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', description: '' });
-  const [error, setError] = useState('');
-  const [deleteModal, setDeleteModal] = useState<{ show: boolean; categoryId: number | null }>({ show: false, categoryId: null });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -89,7 +86,6 @@ export default function Categories() {
 
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     
     try {
       const response = await fetch(`/api/categories`, {
@@ -99,8 +95,8 @@ export default function Categories() {
           'Authorization': `Bearer ${localStorage.getItem('kb_jwt_token') || ''}`,
         },
         body: JSON.stringify({
-          name: newCategory.name.trim(),
-          description: newCategory.description.trim()
+          name: newCategory.name,
+          description: newCategory.description
         }),
       });
       
@@ -116,70 +112,24 @@ export default function Categories() {
         fetchCategories();
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Failed to create category');
+        console.error('Error creating category:', errorData.error);
       }
     } catch (e) {
       console.error('Error creating category:', e);
-      setError('Failed to create category');
     }
   };
 
-  const handleEditCategory = (category: Category) => {
-    setEditingCategory(category);
-    setEditForm({ name: category.name, description: category.description || '' });
-    setError('');
+  const handleDeleteClick = (category: Category) => {
+    setCategoryToDelete(category);
+    setDeleteError('');
+    setShowDeleteModal(true);
   };
 
-  const handleUpdateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingCategory) return;
-    setError('');
+  const handleDelete = async () => {
+    if (!categoryToDelete) return;
     
     try {
-      const response = await fetch(`/api/categories/${editingCategory.id}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('kb_jwt_token') || ''}`,
-        },
-        body: JSON.stringify({
-          name: editForm.name.trim(),
-          description: editForm.description.trim()
-        }),
-      });
-      
-      // Handle unauthorized
-      if (response.status === 401) {
-        logout();
-        return;
-      }
-      
-      if (response.ok) {
-        setEditingCategory(null);
-        setEditForm({ name: '', description: '' });
-        fetchCategories();
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || 'Failed to update category');
-      }
-    } catch (e) {
-      console.error('Error updating category:', e);
-      setError('Failed to update category');
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingCategory(null);
-    setEditForm({ name: '', description: '' });
-    setError('');
-  };
-
-  const handleDeleteCategory = async () => {
-    const categoryId = deleteModal.categoryId;
-    if (!categoryId) return;
-    
-    try {
-      const response = await fetch(`/api/categories/${categoryId}`, {
+      const response = await fetch(`/api/categories/${categoryToDelete.id}`, {
         method: 'DELETE',
         headers: { 
           'Content-Type': 'application/json',
@@ -193,17 +143,21 @@ export default function Categories() {
         return;
       }
       
-      if (response.ok || response.status === 204) {
+      // Handle 204 No Content (successful deletion)
+      if (response.status === 204) {
+        setShowDeleteModal(false);
+        setCategoryToDelete(null);
         fetchCategories();
-      } else {
-        const errorData = await response.json();
-        alert(errorData.error || 'Failed to delete category');
+        return;
       }
+      
+      // Handle other error responses
+      const errorData = await response.json();
+      setDeleteError(errorData.error || 'Failed to delete category');
+      
     } catch (e) {
       console.error('Error deleting category:', e);
-      alert('Failed to delete category');
-    } finally {
-      setDeleteModal({ show: false, categoryId: null });
+      setDeleteError('Failed to delete category. Please try again.');
     }
   };
 
@@ -246,21 +200,19 @@ export default function Categories() {
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h2>Categories</h2>
-            <button onClick={() => { setShowForm(!showForm); setError(''); }} className="btn">
+            <button onClick={() => setShowForm(!showForm)} className="btn">
               {showForm ? 'Cancel' : 'New Category'}
             </button>
           </div>
           
           {showForm && (
             <form onSubmit={handleCreateCategory} style={{ marginBottom: '20px', padding: '20px', background: '#f8f9fa', borderRadius: '5px' }}>
-              {error && <p style={{ color: 'red', marginBottom: '10px' }}>{error}</p>}
               <div className="form-group">
                 <label>Name</label>
                 <input
                   type="text"
                   value={newCategory.name}
                   onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                  placeholder="e.g., Programming, DevOps, Documentation"
                   required
                 />
               </div>
@@ -270,7 +222,6 @@ export default function Categories() {
                   type="text"
                   value={newCategory.description}
                   onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                  placeholder="Optional description"
                 />
               </div>
               <button type="submit" className="btn">Create Category</button>
@@ -301,16 +252,9 @@ export default function Categories() {
                     <td>{category.parentId || '-'}</td>
                     <td>
                       <button 
-                        onClick={() => handleEditCategory(category)} 
-                        className="btn"
-                        style={{ background: '#3498db', marginRight: '5px', padding: '5px 10px', fontSize: '12px' }}
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => setDeleteModal({ show: true, categoryId: category.id })} 
-                        className="btn"
-                        style={{ background: '#e74c3c', padding: '5px 10px', fontSize: '12px' }}
+                        onClick={() => handleDeleteClick(category)} 
+                        className="btn btn-danger"
+                        style={{ padding: '5px 12px', fontSize: '12px' }}
                       >
                         Delete
                       </button>
@@ -321,62 +265,123 @@ export default function Categories() {
             </table>
           )}
         </div>
-
-        {/* Edit Modal */}
-        {editingCategory && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000
-          }}>
-            <div className="card" style={{ width: '400px', maxWidth: '90%' }}>
-              <h3>Edit Category</h3>
-              <form onSubmit={handleUpdateCategory}>
-                {error && <p style={{ color: 'red', marginBottom: '10px' }}>{error}</p>}
-                <div className="form-group">
-                  <label>Name</label>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Description</label>
-                  <input
-                    type="text"
-                    value={editForm.description}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button type="submit" className="btn">Update Category</button>
-                  <button type="button" onClick={handleCancelEdit} className="btn" style={{ background: '#95a5a6' }}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
 
-      <ConfirmModal
-        show={deleteModal.show}
-        title="Delete Category"
-        message="Are you sure you want to delete this category? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
-        onConfirm={handleDeleteCategory}
-        onCancel={() => setDeleteModal({ show: false, categoryId: null })}
-        danger
-      />
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && categoryToDelete && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              backgroundColor: '#fee2e2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18"></path>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            </div>
+            <h2 style={{
+              margin: '0 0 12px',
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#1f2937',
+            }}>
+              確認刪除
+            </h2>
+            <p style={{
+              margin: '0 0 24px',
+              fontSize: '15px',
+              color: '#6b7280',
+              lineHeight: '1.5',
+            }}>
+              你確定要刪除「{escapeHtml(categoryToDelete.name)}」這個分類嗎？
+            </p>
+            {deleteError && (
+              <p style={{
+                margin: '0 0 16px',
+                fontSize: '14px',
+                color: '#dc2626',
+              }}>
+                {deleteError}
+              </p>
+            )}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center',
+            }}>
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setCategoryToDelete(null);
+                  setDeleteError('');
+                }}
+                style={{
+                  padding: '10px 24px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  transition: 'background-color 0.2s',
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#d1d5db'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleDelete}
+                style={{
+                  padding: '10px 24px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  transition: 'background-color 0.2s',
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#b91c1c'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
+              >
+                刪除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
