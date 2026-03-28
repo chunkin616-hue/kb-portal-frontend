@@ -61,9 +61,12 @@ async function handleGetArticles(req: NextApiRequest, res: NextApiResponse) {
   
   const result = await query(sql, params);
   
-  // Sanitize content field to prevent XSS
+  // Sanitize content field to prevent XSS and escape title HTML
   const sanitizedRows = result.rows.map((row: any) => ({
     ...row,
+    title: String(row.title || '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]),
     content: DOMPurify.sanitize(row.content || '', { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }),
   }));
   
@@ -87,11 +90,14 @@ async function handleCreateArticle(req: NextApiRequest, res: NextApiResponse) {
       created_at as "createdAt", updated_at as "updatedAt"
   `;
   
-  // Sanitize content to prevent XSS
+  // Sanitize content to prevent XSS and escape title HTML
   const sanitizedContent = DOMPurify.sanitize(content || '', { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+  const escapedTitle = String(title).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[c]);
   
   const params = [
-    title,
+    escapedTitle,
     sanitizedContent,
     author || 'admin',
     status || 'draft',
@@ -110,7 +116,7 @@ async function handleCreateArticle(req: NextApiRequest, res: NextApiResponse) {
   
   await query(revisionSql, [
     result.rows[0].id,
-    title,
+    escapedTitle,
     sanitizedContent,
     author || 'admin',
     'Initial creation',
