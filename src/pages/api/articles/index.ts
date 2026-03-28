@@ -1,6 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { requireAuth } from '@/lib/apiAuth';
 import { query } from '@/lib/db';
+import createDOMPurify from 'dompurify';
+import { JSDOM } from 'jsdom';
+
+const window = new JSDOM('').window;
+const DOMPurify = createDOMPurify(window);
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -56,7 +61,13 @@ async function handleGetArticles(req: NextApiRequest, res: NextApiResponse) {
   
   const result = await query(sql, params);
   
-  res.status(200).json(result.rows);
+  // Sanitize content field to prevent XSS
+  const sanitizedRows = result.rows.map((row: any) => ({
+    ...row,
+    content: DOMPurify.sanitize(row.content || '', { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }),
+  }));
+  
+  res.status(200).json(sanitizedRows);
 }
 
 async function handleCreateArticle(req: NextApiRequest, res: NextApiResponse) {
@@ -76,9 +87,12 @@ async function handleCreateArticle(req: NextApiRequest, res: NextApiResponse) {
       created_at as "createdAt", updated_at as "updatedAt"
   `;
   
+  // Sanitize content to prevent XSS
+  const sanitizedContent = DOMPurify.sanitize(content || '', { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+  
   const params = [
     title,
-    content || '',
+    sanitizedContent,
     author || 'admin',
     status || 'draft',
     tags || '',
@@ -97,7 +111,7 @@ async function handleCreateArticle(req: NextApiRequest, res: NextApiResponse) {
   await query(revisionSql, [
     result.rows[0].id,
     title,
-    content || '',
+    sanitizedContent,
     author || 'admin',
     'Initial creation',
   ]);
