@@ -27,7 +27,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function handleGetArticles(req: NextApiRequest, res: NextApiResponse) {
-  const { search, category, status } = req.query;
+  const { search, category, status, limit } = req.query;
   
   let sql = `
     SELECT 
@@ -58,6 +58,12 @@ async function handleGetArticles(req: NextApiRequest, res: NextApiResponse) {
   }
   
   sql += ` ORDER BY a.updated_at DESC`;
+  
+  const limitVal = limit ? parseInt(limit as string) : null;
+  if (limitVal) {
+    sql += ` LIMIT $${params.length + 1}`;
+    params.push(limitVal);
+  }
   
   const result = await query(sql, params);
   
