@@ -197,11 +197,11 @@ export default function Categories() {
         fetchCategories();
       } else {
         const errorData = await response.json();
-        alert(errorData.error || 'Failed to delete category');
+        console.error(errorData.error || 'Failed to delete category');
       }
     } catch (e) {
       console.error('Error deleting category:', e);
-      alert('Failed to delete category');
+      console.error('Failed to delete category');
     } finally {
       setDeleteModal({ show: false, categoryId: null });
     }

@@ -86,7 +86,7 @@ export default function ArticleEdit() {
       }
       
       if (response.status === 404) {
-        alert('Article not found');
+        console.error('Article not found');
         router.push('/articles');
         return;
       }
@@ -167,12 +167,12 @@ export default function ArticleEdit() {
       const data = await response.json();
       
       if (data) {
-        alert('Article updated successfully!');
+        console.log('Article updated successfully!');
         router.push(`/articles/${id}`);
       }
     } catch (e) {
       console.error('Error updating article:', e);
-      alert('Failed to update article');
+      console.error('Failed to update article');
     } finally {
       setSaving(false);
     }
@@ -194,7 +194,7 @@ export default function ArticleEdit() {
       }
       
       if (response.status === 204) {
-        alert('Article deleted successfully!');
+        console.log('Article deleted successfully!');
         router.push('/articles');
         return;
       }
@@ -202,7 +202,7 @@ export default function ArticleEdit() {
       const data = await response.json();
       
       if (data && data.success) {
-        alert('Article deleted successfully!');
+        console.log('Article deleted successfully!');
         router.push('/articles');
       }
     } catch (e) {

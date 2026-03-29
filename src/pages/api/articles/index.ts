@@ -70,9 +70,9 @@ async function handleGetArticles(req: NextApiRequest, res: NextApiResponse) {
   // Sanitize content field to prevent XSS and escape title HTML
   const sanitizedRows = result.rows.map((row: any) => ({
     ...row,
-    title: String(row.title || '').replace(/[&<>"']/g, (c) => ({
+    title: String(row.title == null ? '' : row.title).replace(/[&<>"']/g, (c) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    })[c]),
+    }[c] ?? '')),
     content: DOMPurify.sanitize(row.content || '', { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }),
   }));
   
@@ -98,9 +98,9 @@ async function handleCreateArticle(req: NextApiRequest, res: NextApiResponse) {
   
   // Sanitize content to prevent XSS and escape title HTML
   const sanitizedContent = DOMPurify.sanitize(content || '', { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
-  const escapedTitle = String(title).replace(/[&<>"']/g, (c) => ({
+  const escapedTitle = String(title == null ? '' : title).replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  })[c]);
+  }[c] ?? ''));
   
   const params = [
     escapedTitle,

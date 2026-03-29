@@ -180,11 +180,11 @@ export default function Tags() {
         fetchTags();
       } else {
         const errorData = await response.json();
-        alert(errorData.error || 'Failed to delete tag');
+        console.error(errorData.error || 'Failed to delete tag');
       }
     } catch (e) {
       console.error('Error deleting tag:', e);
-      alert('Failed to delete tag');
+      console.error('Failed to delete tag');
     } finally {
       setDeleteModal({ show: false, tagId: null });
     }

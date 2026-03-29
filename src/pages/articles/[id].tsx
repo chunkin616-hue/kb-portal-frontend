@@ -205,7 +205,7 @@ export default function ArticleDetail() {
       
       // Handle 204 No Content (successful deletion)
       if (response.status === 204) {
-        alert('Article deleted successfully!');
+        console.log('Article deleted successfully!');
         router.push('/articles');
         return;
       }
@@ -214,7 +214,7 @@ export default function ArticleDetail() {
       const data = await response.json();
       
       if (data && data.success) {
-        alert('Article deleted successfully!');
+        console.log('Article deleted successfully!');
         router.push('/articles');
       }
     } catch (e) {

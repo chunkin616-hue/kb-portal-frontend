@@ -40,9 +40,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     // Sanitize content and escape title for XSS prevention
     const sanitizedRows = result.rows.map((row: any) => ({
       ...row,
-      title: String(row.title || '').replace(/[&<>"']/g, (c) => ({
+      title: String(row.title == null ? '' : row.title).replace(/[&<>"']/g, (c) => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      })[c]),
+      }[c] ?? '')),
       content: DOMPurify.sanitize(row.content || '', { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }),
     }));
 
