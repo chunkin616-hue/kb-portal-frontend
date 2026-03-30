@@ -6,7 +6,9 @@
     "dev": "next dev -p $PORT",
     "build": "next build",
     "start": "next start -p $PORT",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@apollo/client": "^3.9.9",
@@ -30,6 +32,11 @@
     "@types/react-dom": "^18.2.22",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.3",
-    "typescript": "^5.4.2"
+    "jest": "^29.7.0",
+    "typescript": "^5.4.2",
+    "@testing-library/react": "^14.2.2",
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/user-event": "^14.5.2",
+    "jest-environment-jsdom": "^29.7.0"
   }
 }
